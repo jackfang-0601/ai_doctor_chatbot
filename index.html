@@ -3,42 +3,515 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Doctor Chat Demo</title>
+  <title>AI Doctor Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: 'Arial', sans-serif; }
-    .chat-container { height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
-    .user-message { text-align: right; color: blue; }
-    .ai-message { text-align: left; color: green; }
-  </style>
-</head>
-<body class="bg-gray-100 p-4">
-  <h1 class="text-2xl font-bold mb-4">AI Doctor Chat Demo (Static Version for GitHub Pages)</h1>
-  <p class="mb-4">This is a static interactive demo. Type a message to get a simulated AI response.</p>
-  
-  <div class="chat-container mb-4" id="chat-box"></div>
-  
-  <input type="text" id="user-input" placeholder="Type your message..." class="border p-2 w-full mb-2">
-  <button onclick="sendMessage()" class="bg-blue-500 text-white p-2 rounded">Send</button>
-  
   <script>
-    function sendMessage() {
-      const input = document.getElementById('user-input');
-      const message = input.value.trim();
-      if (!message) return;
-      
-      const chatBox = document.getElementById('chat-box');
-      chatBox.innerHTML += `<div class="user-message">You: ${message}</div>`;
-      
-      // Simulate AI response (replace with actual API call if hosted)
-      const simulatedResponse = `AI Doctor: Thanks for your query about "${message}". In a real app, I'd provide medical advice!`;
-      chatBox.innerHTML += `<div class="ai-message">${simulatedResponse}</div>`;
-      
-      chatBox.scrollTop = chatBox.scrollHeight;
-      input.value = '';
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+        },
+      },
     }
   </script>
-  
-  <p class="mt-4">For the full dynamic version, deploy to Vercel using your `.vercel/project.json` and visit the live URL. If you want to integrate real OpenAI calls here, let me know for modifications (but avoid exposing API keys client-side).</p>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .chat-container {
+      height: calc(100vh - 180px);
+    }
+    .typing-indicator span {
+      animation: blink 1.4s infinite both;
+    }
+    .typing-indicator span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    .typing-indicator span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+    @keyframes blink {
+      0% { opacity: 0.1; }
+      20% { opacity: 1; }
+      100% { opacity: 0.1; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="flex flex-col h-screen">
+    <!-- Welcome Screen (Country Selection) -->
+    <div id="welcome-screen" class="flex items-center justify-center h-screen bg-gradient-to-br from-primary-50 to-primary-100">
+      <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
+        <div class="text-center mb-6">
+          <h1 class="text-3xl font-bold text-primary-700 mb-2">AI Doctor Chat</h1>
+          <p class="text-gray-600">Your personal AI health assistant</p>
+        </div>
+        
+        <div class="mb-8">
+          <h2 class="text-xl font-semibold mb-4 text-gray-800">Select Your Country</h2>
+          <div class="grid grid-cols-2 gap-4">
+            <button id="usa-btn" class="bg-white border-2 border-primary-200 hover:border-primary-500 text-primary-700 font-medium py-3 px-4 rounded-lg flex flex-col items-center justify-center transition duration-200 hover:bg-primary-50">
+              <span class="text-lg">United States</span>
+            </button>
+            <button id="china-btn" class="bg-white border-2 border-primary-200 hover:border-primary-500 text-primary-700 font-medium py-3 px-4 rounded-lg flex flex-col items-center justify-center transition duration-200 hover:bg-primary-50">
+              <span class="text-lg">China</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Information Form -->
+    <div id="user-info-screen" class="hidden flex items-center justify-center h-screen bg-gradient-to-br from-primary-50 to-primary-100">
+      <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
+        <div class="text-center mb-6">
+          <h1 class="text-3xl font-bold text-primary-700 mb-2">Patient Information</h1>
+          <p class="text-gray-600">Please provide your details</p>
+        </div>
+        
+        <form id="user-info-form" class="space-y-4">
+          <div>
+            <label for="fullname" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <input type="text" id="fullname" name="fullname" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500">
+          </div>
+          
+          <div>
+            <label for="birthday" class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+            <input type="date" id="birthday" name="birthday" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+            <div class="flex space-x-4">
+              <label class="inline-flex items-center">
+                <input type="radio" name="gender" value="male" class="h-4 w-4 text-primary-600 focus:ring-primary-500" required>
+                <span class="ml-2">Male</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="radio" name="gender" value="female" class="h-4 w-4 text-primary-600 focus:ring-primary-500">
+                <span class="ml-2">Female</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="radio" name="gender" value="other" class="h-4 w-4 text-primary-600 focus:ring-primary-500">
+                <span class="ml-2">Other</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="pt-4">
+            <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2.5 px-4 rounded-lg transition duration-200">Start Consultation</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Chat Interface -->
+    <div id="chat-interface" class="hidden flex flex-col h-screen">
+      <!-- Header -->
+      <header class="bg-white border-b border-gray-200 py-4 px-6 flex justify-between items-center">
+        <div class="flex items-center">
+          <h1 class="text-xl font-semibold text-primary-700">AI Doctor Chat</h1>
+          <span id="country-badge" class="ml-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800"></span>
+        </div>
+        <div class="flex items-center">
+          <div id="user-info-display" class="text-sm text-gray-600 mr-4"></div>
+          <button id="new-chat-btn" class="text-gray-600 hover:text-primary-600 transition duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Chat Area -->
+      <main class="flex flex-1 overflow-hidden">
+        <!-- Left Sidebar -->
+        <div class="w-1/4 bg-white border-r border-gray-200 p-4 hidden md:block">
+          <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">Patient Information</h2>
+            <div id="sidebar-user-info" class="text-sm text-gray-600 space-y-2 border-b border-gray-200 pb-4"></div>
+          </div>
+          
+          <div>
+            <h2 class="text-lg font-semibold text-gray-800 mb-2">Diagnosis Summary</h2>
+            <div id="diagnosis-summary" class="text-sm text-gray-600 space-y-2">
+              <p class="italic text-gray-500">A summary will appear here when your consultation is complete.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="flex-1 flex flex-col bg-gray-50 overflow-hidden">
+          <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-4">
+            <!-- Welcome message will be added here -->
+          </div>
+
+          <!-- Message Input -->
+          <div class="border-t border-gray-200 bg-white p-4">
+            <form id="chat-form" class="flex items-end gap-2">
+              <div class="flex-1 bg-gray-50 rounded-lg border border-gray-300 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 overflow-hidden">
+                <textarea 
+                  id="message-input" 
+                  rows="1" 
+                  placeholder="Type your message here..." 
+                  class="w-full px-4 py-3 bg-transparent border-none focus:ring-0 resize-none max-h-32 text-gray-900"
+                  required
+                ></textarea>
+              </div>
+              <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white p-3 rounded-lg transition duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // Global variables
+    let selectedCountry = '';
+    let userInfo = {};
+    let isWaitingForResponse = false;
+    
+    // DOM Elements
+    const welcomeScreen = document.getElementById('welcome-screen');
+    const userInfoScreen = document.getElementById('user-info-screen');
+    const chatInterface = document.getElementById('chat-interface');
+    const usaBtn = document.getElementById('usa-btn');
+    const chinaBtn = document.getElementById('china-btn');
+    const userInfoForm = document.getElementById('user-info-form');
+    const countryBadge = document.getElementById('country-badge');
+    const userInfoDisplay = document.getElementById('user-info-display');
+    const sidebarUserInfo = document.getElementById('sidebar-user-info');
+    const messagesContainer = document.getElementById('messages-container');
+    const chatForm = document.getElementById('chat-form');
+    const messageInput = document.getElementById('message-input');
+    const diagnosisSummary = document.getElementById('diagnosis-summary');
+    const newChatBtn = document.getElementById('new-chat-btn');
+    
+    // Event Listeners
+    usaBtn.addEventListener('click', () => selectCountry('USA'));
+    chinaBtn.addEventListener('click', () => selectCountry('China'));
+    userInfoForm.addEventListener('submit', handleUserInfoSubmit);
+    chatForm.addEventListener('submit', sendMessage);
+    newChatBtn.addEventListener('click', resetChat);
+    
+    // Auto-resize textarea as user types
+    messageInput.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = (this.scrollHeight) + 'px';
+    });
+    
+    // Select country and show user info form
+    function selectCountry(country) {
+      selectedCountry = country;
+      welcomeScreen.classList.add('hidden');
+      userInfoScreen.classList.remove('hidden');
+    }
+    
+    // Handle user info submission
+    function handleUserInfoSubmit(event) {
+      event.preventDefault();
+      
+      // Get form data
+      const formData = new FormData(userInfoForm);
+      userInfo = {
+        fullname: formData.get('fullname'),
+        birthday: formData.get('birthday'),
+        gender: formData.get('gender')
+      };
+      
+      // Calculate age from birthday
+      const birthDate = new Date(userInfo.birthday);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      userInfo.age = age;
+      
+      // Format birthday for display
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };
+      userInfo.formattedBirthday = birthDate.toLocaleDateString(undefined, options);
+      
+      // Update UI
+      countryBadge.textContent = selectedCountry;
+      userInfoDisplay.textContent = `${userInfo.fullname}, ${userInfo.age}`;
+      
+      // Update sidebar info
+      sidebarUserInfo.innerHTML = `
+        <div><span class="font-medium">Name:</span> ${userInfo.fullname}</div>
+        <div><span class="font-medium">Age:</span> ${userInfo.age}</div>
+        <div><span class="font-medium">Gender:</span> ${userInfo.gender.charAt(0).toUpperCase() + userInfo.gender.slice(1)}</div>
+        <div><span class="font-medium">Date of Birth:</span> ${userInfo.formattedBirthday}</div>
+      `;
+      
+      // Show chat interface
+      userInfoScreen.classList.add('hidden');
+      chatInterface.classList.remove('hidden');
+      
+      // Start conversation with backend
+      startConversation();
+    }
+    
+    // Start a conversation with the selected country
+    function startConversation() {
+      // Send request to start endpoint
+      fetch('/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `country=${selectedCountry}`
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          // Add welcome message
+          const welcomeMessage = selectedCountry === 'USA' 
+            ? `Hello ${userInfo.fullname}, I'm your AI doctor based in the United States. How can I help you today?`
+            : `Hello ${userInfo.fullname}, I'm your AI doctor based in China. How can I help you today?`;
+          
+          addMessage('assistant', welcomeMessage);
+        } else {
+          showError(`Error: ${data.message}`);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showError('Failed to start conversation. Please try again.');
+      });
+    }
+    
+    // Send a message to the chat endpoint
+    function sendMessage(event) {
+      event.preventDefault();
+      
+      if (isWaitingForResponse) return;
+      
+      const message = messageInput.value.trim();
+      if (!message) return;
+      
+      // Add user message to UI
+      addMessage('user', message);
+      messageInput.value = '';
+      messageInput.style.height = 'auto';
+      
+      // Show typing indicator
+      showTypingIndicator();
+      isWaitingForResponse = true;
+      
+      // Send message to server
+      fetch('/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `country=${selectedCountry}&message=${encodeURIComponent(message)}`
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Remove typing indicator
+        removeTypingIndicator();
+        isWaitingForResponse = false;
+        
+        if (data.status === 'ok') {
+          // Add AI response to UI
+          addMessage('assistant', data.reply);
+          
+          // If conversation is finished, update the summary section
+          if (data.finished) {
+            updateSummary(data.reply);
+            messageInput.disabled = true;
+            messageInput.placeholder = 'Consultation finished. Click "New Chat" to start again.';
+          }
+        } else {
+          showError(`Error: ${data.message}`);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        removeTypingIndicator();
+        isWaitingForResponse = false;
+        showError('Failed to send message. Please try again.');
+      });
+    }
+    
+    // Add a message to the UI
+    function addMessage(role, content) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'flex items-start gap-3 ' + (role === 'user' ? 'justify-end' : '');
+      
+      // Check if this is a summary message from the assistant
+      const isSummary = role === 'assistant' && 
+        (content.includes('SYMPTOMS:') || 
+         content.includes('ASSESSMENT:') || 
+         content.includes('RECOMMENDATIONS:') || 
+         content.includes('Here is a summary') || 
+         content.includes('Summary for your real doctor') || 
+         content.toLowerCase().includes('bullet points'));
+      
+      if (role === 'user') {
+        messageDiv.innerHTML = `
+          <div class="max-w-[80%] md:max-w-[70%] bg-primary-600 text-white px-4 py-3 rounded-lg">
+            <p>${formatMessageContent(content)}</p>
+          </div>
+          <div class="w-8 h-8 rounded-full bg-primary-200 flex items-center justify-center text-primary-700 font-semibold">
+            ${userInfo.fullname.charAt(0).toUpperCase()}
+          </div>
+        `;
+      } else {
+        // For assistant messages, apply special formatting for summaries
+        if (isSummary) {
+          // Format the content to make bullet points more readable
+          const formattedContent = formatSummaryContent(content);
+          
+          messageDiv.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center text-white font-semibold">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div class="max-w-[80%] md:max-w-[70%] bg-white border border-gray-200 shadow-sm px-4 py-3 rounded-lg">
+              <div class="font-semibold text-primary-700 mb-2">Diagnosis Summary</div>
+              <div class="diagnosis-content">${formattedContent}</div>
+            </div>
+          `;
+        } else {
+          messageDiv.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center text-white font-semibold">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div class="max-w-[80%] md:max-w-[70%] bg-white border border-gray-200 shadow-sm px-4 py-3 rounded-lg">
+              <p>${formatMessageContent(content)}</p>
+            </div>
+          `;
+        }
+      }
+      
+      messagesContainer.appendChild(messageDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    // Format regular message content
+    function formatMessageContent(content) {
+      // Convert line breaks to <br>
+      return content.replace(/\n/g, '<br>');
+    }
+    
+    // Format summary content to make bullet points more readable
+    function formatSummaryContent(content) {
+      // Replace section headers with styled headers
+      let formatted = content
+        .replace(/(SYMPTOMS:|ASSESSMENT:|RECOMMENDATIONS:)/g, '<h3 class="font-semibold text-primary-800 mt-3 mb-1">$1</h3>');
+      
+      // Replace bullet points with styled bullet points
+      formatted = formatted
+        .replace(/\n\s*-\s+/g, '<br><div class="flex"><span class="text-primary-500 mr-2">•</span><span>')  // Replace dash bullet points
+        .replace(/\n\s*\*\s+/g, '<br><div class="flex"><span class="text-primary-500 mr-2">•</span><span>') // Replace asterisk bullet points
+        .replace(/\n\s*\d+\.\s+/g, '<br><div class="flex"><span class="text-primary-500 mr-2">•</span><span>'); // Replace numbered bullet points
+      
+      // Add closing spans and divs for the flex containers
+      formatted = formatted.replace(/<\/span>\s*([^<]+)/g, '$1</span></div>');
+      
+      // Add spacing between sections
+      formatted = formatted.replace(/\n\n/g, '<br><br>');
+      
+      // Convert remaining line breaks
+      formatted = formatted.replace(/\n/g, '<br>');
+      
+      return formatted;
+    }
+    
+    // Show typing indicator
+    function showTypingIndicator() {
+      const typingDiv = document.createElement('div');
+      typingDiv.id = 'typing-indicator';
+      typingDiv.className = 'flex items-start gap-3';
+      typingDiv.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center text-white font-semibold">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div class="max-w-[80%] md:max-w-[70%] bg-white border border-gray-200 shadow-sm px-4 py-3 rounded-lg">
+          <div class="typing-indicator flex space-x-1">
+            <span class="w-2 h-2 bg-gray-300 rounded-full"></span>
+            <span class="w-2 h-2 bg-gray-300 rounded-full"></span>
+            <span class="w-2 h-2 bg-gray-300 rounded-full"></span>
+          </div>
+        </div>
+      `;
+      messagesContainer.appendChild(typingDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    // Remove typing indicator
+    function removeTypingIndicator() {
+      const typingIndicator = document.getElementById('typing-indicator');
+      if (typingIndicator) {
+        typingIndicator.remove();
+      }
+    }
+    
+    // Update the summary section with the final diagnosis
+    function updateSummary(content) {
+      // Format the content for the summary section
+      const formattedSummary = formatSummaryContent(content);
+      
+      // Update the summary section
+      diagnosisSummary.innerHTML = formattedSummary;
+    }
+    
+    // Show error message
+    function showError(message) {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4';
+      errorDiv.innerHTML = `<span class="block sm:inline">${message}</span>`;
+      messagesContainer.appendChild(errorDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    // Reset chat for a new conversation
+    function resetChat() {
+      // Clear messages
+      messagesContainer.innerHTML = '';
+      
+      // Reset diagnosis summary
+      diagnosisSummary.innerHTML = '<p class="italic text-gray-500">A summary will appear here when your consultation is complete.</p>';
+      
+      // Enable message input
+      messageInput.disabled = false;
+      messageInput.placeholder = 'Type your message here...';
+      
+      // Start new conversation
+      startConversation();
+    }
+  </script>
 </body>
 </html>
